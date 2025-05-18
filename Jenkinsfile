@@ -1,43 +1,93 @@
 pipeline {
     agent {
-        docker { 
-            image 'node:18'  // Use Node.js official image (v18 LTS)
-            args '-v /var/run/docker.sock:/var/run/docker.sock'  // Bind mount docker socket to run docker commands
+        docker {
+            image 'node:18' // Node 18 image has npm
+            args '-v /var/run/docker.sock:/var/run/docker.sock' // enable docker commands inside container
         }
+    }
+
+    environment {
+        DOCKER_IMAGE = "todo-frontend:latest"
+        CONTAINER_NAME = "todo-frontend-container"
     }
 
     stages {
         stage('Checkout') {
             steps {
+                echo "Checking out source code..."
                 checkout scm
             }
         }
+
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                echo "Installing npm dependencies..."
+                script {
+                    def status = sh(script: 'npm install', returnStatus: true)
+                    if (status != 0) {
+                        error "npm install failed! Please check your package.json and network connectivity."
+                    }
+                }
             }
         }
+
         stage('Build') {
             steps {
-                sh 'npm run build'
+                echo "Running build script..."
+                script {
+                    def status = sh(script: 'npm run build', returnStatus: true)
+                    if (status != 0) {
+                        error "Build failed! Check your React build scripts."
+                    }
+                }
             }
         }
+
         stage('Build Docker Image') {
             steps {
+                echo "Building Docker image ${env.DOCKER_IMAGE}..."
                 script {
-                    dockerImage = docker.build("todo-frontend:latest")
+                    try {
+                        dockerImage = docker.build(env.DOCKER_IMAGE)
+                    } catch (Exception e) {
+                        error "Docker build failed: ${e.message}"
+                    }
                 }
             }
         }
+
         stage('Run Docker Container') {
             steps {
+                echo "Stopping and removing existing container if it exists..."
                 script {
-                    // Stop & remove container if already running
-                    sh 'docker rm -f todo-frontend-container || true'
-                    // Run container from built image
-                    sh 'docker run -d -p 3000:80 --name todo-frontend-container todo-frontend:latest'
+                    sh """
+                        if [ \$(docker ps -q -f name=${env.CONTAINER_NAME}) ]; then
+                            docker rm -f ${env.CONTAINER_NAME}
+                        fi
+                    """
+                }
+
+                echo "Starting new container ${env.CONTAINER_NAME} from image ${env.DOCKER_IMAGE}..."
+                script {
+                    def status = sh(script: "docker run -d -p 3000:80 --name ${env.CONTAINER_NAME} ${env.DOCKER_IMAGE}", returnStatus: true)
+                    if (status != 0) {
+                        error "Failed to run Docker container!"
+                    }
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully! Frontend app is running in Docker container."
+        }
+        failure {
+            echo "Pipeline failed. Please check the logs above."
+        }
+        always {
+            echo "Cleaning up workspace..."
+            cleanWs()
         }
     }
 }
