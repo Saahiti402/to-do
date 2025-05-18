@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:18' // Node 18 image has npm
-            args '-v /var/run/docker.sock:/var/run/docker.sock' // enable docker commands inside container
-        }
-    }
+    agent any
 
     environment {
         DOCKER_IMAGE = "todo-frontend:latest"
@@ -47,10 +42,9 @@ pipeline {
             steps {
                 echo "Building Docker image ${env.DOCKER_IMAGE}..."
                 script {
-                    try {
-                        dockerImage = docker.build(env.DOCKER_IMAGE)
-                    } catch (Exception e) {
-                        error "Docker build failed: ${e.message}"
+                    def status = sh(script: "docker build -t ${env.DOCKER_IMAGE} .", returnStatus: true)
+                    if (status != 0) {
+                        error "Docker build failed!"
                     }
                 }
             }
