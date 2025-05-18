@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker { 
+            image 'node:18'  // Use Node.js official image (v18 LTS)
+            args '-v /var/run/docker.sock:/var/run/docker.sock'  // Bind mount docker socket to run docker commands
+        }
+    }
 
     stages {
         stage('Checkout') {
@@ -36,4 +41,3 @@ pipeline {
         }
     }
 }
-
