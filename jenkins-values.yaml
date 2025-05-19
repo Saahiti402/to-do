@@ -1,0 +1,22 @@
+controller:
+  installPlugins:
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - credentials
+    - configuration-as-code
+
+  serviceType: NodePort
+  nodePort: 32000
+
+  admin:
+    username: admin
+    password: admin
+
+  additionalContainers:
+    - name: kubectl
+      image: bitnami/kubectl:latest
+      command:
+        - cat
+      tty: true
+
