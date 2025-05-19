@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/Saahiti402/to-do.git'
+                git branch: 'main', url: 'https://github.com/Saahiti402/to-do.git'
             }
         }
 
@@ -15,6 +15,7 @@ pipeline {
                 }
             }
         }
+
         stage('Deploy to Kubernetes') {
             steps {
                 sh 'kubectl apply -f frontend/todo-frontend-deployment.yaml'
